@@ -11,21 +11,23 @@ def process_data(stations_id, stations_info, metatok):
     df = pd.read_excel(stations_id)
     id = df['ID'].to_list()
     selected_basins = {}
-
+    header = ['station', 'year', 'month', 'day', 'time', 'is_row_bad', 'Level', 'Battery']
+    print(id)
     for i in id:
-        write_header = True
         file_name = 'data_' + str(i) + '.csv'
         selected_basins[i] = file_name
-        # for file in metatok:
-        #     df = pd.read_csv(file)
-        #     if write_header:
-        #         df.to_csv(file_name,
-        #                   header=['station', 'year', 'month', 'day', 'time', 'is_row_bad', 'Level', 'Battery'],
-        #                   index=False)
-        #         write_header = False
-        #     if i in df['station'].values:
-        #         df2 = df[df['station'] == i]
-        #         df2.to_csv(file_name, mode='a', sep=',', index=False, header=False)
+
+        with open(file_name, 'w',newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+
+        for file in metatok:
+            df = pd.read_csv(file)
+            if i in df['station'].values:
+                df2 = df[df['station'] == i]
+                print(str(i) + " in " + str(file_name))
+                print(df2)
+                df2.to_csv(file_name, mode='a', sep=',', index=False, header=False)
     return selected_basins
 
 
@@ -48,4 +50,4 @@ if __name__ == '__main__':
     metatok = [metatok_1, metatok_2, metatok_3, metatok_4]
 
     selected_basins = process_data(stations_id, station_info, metatok)
-    create_basins(selected_basins, station_info)
+    # create_basins(selected_basins, station_info)

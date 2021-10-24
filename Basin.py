@@ -142,7 +142,6 @@ class Basin:
         """
         plots the streamflow prediction vs reality per day.
         """
-
         fig, ax = plt.subplots()
         plt.title(label="Predicted and actual streamflow per day")
         ax.plot(self.timestamp,self.f['y_test'], label="actual")
@@ -154,13 +153,13 @@ class Basin:
 
 if __name__ == '__main__':
     pass
-    file_flow = "C:\\Users\\asus\\Desktop\\Israel_flood_prediction\\data_14120.csv"
-    stations_id = "data//stations.xlsx"
-    station_info = "data//קטלוג_תחנות_הידרומטריות.xlsx"
-    b = Basin(id, file_flow)
-    b.process_flow_file()
-    b.create_features()
-    b.split_data()
-    y_pred = b.model()
-    b.asses_models(y_pred)
-    # b.plot_prediction(y_pred)
+    # file_flow = "C:\\Users\\asus\\Desktop\\Israel_flood_prediction\\data_14120.csv"
+    # stations_id = "data//stations.xlsx"
+    # station_info = "data//קטלוג_תחנות_הידרומטריות.xlsx"
+    # b = Basin(id, file_flow)
+    # b.process_flow_file()
+    # b.create_features()
+    # b.split_data()
+    # y_pred = b.model()
+    # b.asses_models(y_pred)
+    # # b.plot_prediction(y_pred)

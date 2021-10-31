@@ -15,8 +15,6 @@ split train, val, pred
 make model
 make plot"""
 
-HEADER = ['station', 'year', 'month', 'day', 'hour', 'is_row_bad', 'Level', 'Battery']
-
 
 class Basin:
     """
@@ -27,7 +25,6 @@ class Basin:
     counter = 0
 
     def __init__(self, id, file_flow, stations_info=None):
-        self.features = {}
         Basin.counter += 1
 
         self.id = np.int64(id)
@@ -49,20 +46,18 @@ class Basin:
         self.timestamp = None
 
     def process_station_info(self):
-        df = pd.read_excel(self.info,index_col=None)
-
+        df = pd.read_excel(self.info, index_col=None)
         if self.id in df['id'].values:
             df = df[df['id'] == self.id]
-
             self.name = df['name'].iloc[0]
             self.area = df['area'].iloc[0]
-            print(self.id,self.name,self.area)
-    # put the area, name for each basin
 
     def process_flow_file(self):
         df = pd.read_csv(self.f_flow, sep='\t'
                          , parse_dates={'date': ['year', 'month', 'day']})
         df = df.dropna(axis=0)
+        print(df)
+
         self.data = df
 
     def split_data(self):
@@ -150,7 +145,7 @@ class Basin:
         """
         fig, ax = plt.subplots()
         plt.title(label="Predicted and actual streamflow per day")
-        ax.plot(self.f['y_test'], label="actual")
+        # ax.plot(self.f['y_test'], label="actual")
         ax.set_xlabel("year")
         ax.set_ylabel("streamflow mm/day")
         # ax.plot(self.timestamp,y_pred, label="predicted")
@@ -165,7 +160,7 @@ class Basin:
         plots the streamflow of all available data.
         """
         fig, ax = plt.subplots()
-        plt.title(label="streamflow of Basin: " + self.name+ " id: "+str(self.id))
+        plt.title(label="streamflow of Basin: " + self.name + " id: " + str(self.id))
         ax.plot(self.data['Level'])
         ax.set_xlabel("year")
         ax.set_ylabel("Level m")

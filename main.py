@@ -47,9 +47,9 @@ def create_basins(selected_basins, stations_info):
 
         b.process_station_info()
         b.process_flow_file()
-        b.plot_streamflow()
+        # b.plot_streamflow()
 
-
+        #
         # b.create_features()
         # b.split_data()
         # y_pred = b.model()

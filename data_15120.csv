@@ -1,3 +1,4 @@
+station	year	month	day	time	is_row_bad	Level	Battery
 15120	2010	5	31	9	0	4.96	12.5
 15120	2010	5	31	10	0	4.96	12.5
 15120	2010	5	31	11	0	4.96	12.5

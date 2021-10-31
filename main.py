@@ -16,39 +16,45 @@ def process_data(stations_id, metatok):
     df = pd.read_excel(stations_id)
     id = df['ID'].to_list()
     selected_basins = {}
-    header = ['station', 'year', 'month', 'day', 'time', 'is_row_bad', 'Level', 'Battery']
+    header = ['station', 'year', 'month', 'day', 'hour', 'is_row_bad', 'Level', 'Battery']
     for i in id:
+        has_header = False
         file_name = 'data_' + str(i) + '.csv'
         selected_basins[i] = file_name
 
-        # with open(file_name, 'w',newline='') as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow(header)
-
         # for file in metatok:
+        #     if not has_header:
+        #         df = pd.read_csv(file, nrows=0)
+        #         header = df.columns
+        #         df.to_csv(file_name,mode='a',header=header,index=False,sep="\t")
+        #         has_header = True
+        #
         #     df = pd.read_csv(file)
+        #
         #     if i in df['station'].values:
         #         df = df[df['station'] == i]
-        #         df = df[df['time'] % 100 == 0] # takeout not round hours
+        #         df = df[df['time'] % 100 == 0]  # takeout not round hours
         #         df = df.replace({'time': TIME})
         #         df['time'] = df['time'].astype(int)
-        #
-        #         # df['date'] = pd.to_datetime(df['year'] * 10000 + df['month'] * 100 + df['day'], format='%Y%m%d')
-        #         df.to_csv(file_name, mode='a', sep='\t', index=False, header=False)
+        #         df['Level'] = df['Level'].astype(float)
+        #         df.to_csv(file_name, mode='a', sep='\t',header=False,index=False,index_label=True)
     return selected_basins
 
 
 def create_basins(selected_basins, stations_info):
     for id, file_flow in selected_basins.items():
         b = Basin(id, file_flow, stations_info)
+
+        b.process_station_info()
         b.process_flow_file()
-        b = Basin(id, file_flow)
-        b.process_flow_file()
-        b.create_features()
-        b.split_data()
-        y_pred = b.model()
-        b.asses_models(y_pred)
-        b.plot_prediction(y_pred)
+        b.plot_streamflow()
+
+
+        # b.create_features()
+        # b.split_data()
+        # y_pred = b.model()
+        # b.asses_models(y_pred)
+        # b.plot_prediction(y_pred)
 
 if __name__ == '__main__':
     # general station files
@@ -64,3 +70,6 @@ if __name__ == '__main__':
 
     selected_basins = process_data(stations_id, metatok)
     create_basins(selected_basins, station_info)
+
+# fix dates
+# delta take out fucks

@@ -7,6 +7,7 @@ from datetime import datetime
 from pandas import DataFrame
 import matplotlib.dates as dates
 from matplotlib.dates import DateFormatter
+
 """ todo: 
 timestamps
 create X,y
@@ -29,7 +30,7 @@ class Basin:
         self.features = {}
         Basin.counter += 1
 
-        self.id = id
+        self.id = np.int64(id)
 
         # basin files
         self.f_flow = file_flow
@@ -37,6 +38,7 @@ class Basin:
         # self.f_prcp = file_prcp
 
         self.area = None
+        self.name = None
         self.latitude = None  # m
         self.elevation = None  # m
 
@@ -47,13 +49,19 @@ class Basin:
         self.timestamp = None
 
     def process_station_info(self):
-        pass
+        df = pd.read_excel(self.info,index_col=None)
 
-    # put the area for each basin
+        if self.id in df['id'].values:
+            df = df[df['id'] == self.id]
+
+            self.name = df['name'].iloc[0]
+            self.area = df['area'].iloc[0]
+            print(self.id,self.name,self.area)
+    # put the area, name for each basin
 
     def process_flow_file(self):
-        df = pd.read_csv(self.f_flow, sep='\t',
-                         names=HEADER, parse_dates={'date': ['year', 'month', 'day', 'hour']})
+        df = pd.read_csv(self.f_flow, sep='\t'
+                         , parse_dates={'date': ['year', 'month', 'day']})
         df = df.dropna(axis=0)
         self.data = df
 
@@ -66,10 +74,10 @@ class Basin:
         X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=1)
         # X_train, X_val, y_train, y_val= train_test_split(X_train, y_train, test_size=0.25, random_state=1)  # 0.25 x 0.8 = 0.2
 
-        split = round(self.data.shape[0] // 78*(0.8))
-        X_train,X_test = np.split(self.X,[split],axis=0)
-        y_train,y_test = np.split(self.y,[split],axis=0)
-        timestamp_train, self.timestamp = np.split(self.timestamp,[split],axis=0)
+        split = round(self.data.shape[0] // 78 * (0.8))
+        X_train, X_test = np.split(self.X, [split], axis=0)
+        y_train, y_test = np.split(self.y, [split], axis=0)
+        timestamp_train, self.timestamp = np.split(self.timestamp, [split], axis=0)
         self.f = {"X_train": X_train, "y_train": y_train,
                   "X_test": X_test, "y_test": y_test}
 
@@ -91,15 +99,13 @@ class Basin:
         self.X = X
         self.y = y
 
-
-
     def model(self):
         """
         regression model for stream prediction.
         """
         # regularization: minus min divide by difference max min
         X_train = self.f['X_train']
-        X_min,X_max = X_train.min(), X_train.max()
+        X_min, X_max = X_train.min(), X_train.max()
         X_train = (X_train - X_min) / (X_max - X_min)
 
         y_train = self.f['y_train']
@@ -144,12 +150,27 @@ class Basin:
         """
         fig, ax = plt.subplots()
         plt.title(label="Predicted and actual streamflow per day")
-        ax.plot(self.timestamp,self.f['y_test'], label="actual")
+        ax.plot(self.f['y_test'], label="actual")
         ax.set_xlabel("year")
         ax.set_ylabel("streamflow mm/day")
-        ax.plot(self.timestamp,y_pred, label="predicted")
+        # ax.plot(self.timestamp,y_pred, label="predicted")
         ax.legend()
         plt.show()
+
+    def clean_data(self):
+        pass
+
+    def plot_streamflow(self):
+        """
+        plots the streamflow of all available data.
+        """
+        fig, ax = plt.subplots()
+        plt.title(label="streamflow of Basin: " + self.name+ " id: "+str(self.id))
+        ax.plot(self.data['Level'])
+        ax.set_xlabel("year")
+        ax.set_ylabel("Level m")
+        plt.show()
+
 
 if __name__ == '__main__':
     pass

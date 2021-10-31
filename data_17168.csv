@@ -1,3 +1,4 @@
+station	year	month	day	time	is_row_bad	Level	Battery
 17168	2013	1	8	17	0	15.15	12.5
 17168	2013	1	8	18	0	15.04	12.5
 17168	2013	1	8	19	0	15.04	12.5

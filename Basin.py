@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from datetime import datetime
+from datetime import datetime
 from pandas import DataFrame
 import matplotlib.dates as dates
 from matplotlib.dates import DateFormatter
@@ -53,8 +54,14 @@ class Basin:
             self.area = df['area'].iloc[0]
 
     def process_flow_file(self):
-        df = pd.read_csv(self.f_flow, sep='\t'
-                         , parse_dates={'date': ['year', 'month', 'day']})
+        df = pd.read_csv(self.f_flow, sep='\t')
+        timestamp = pd.DataFrame({'year': df.year,
+                           'month': df.month,
+                           'day': df.day,
+                           'hour': df.time})
+        timestamp = pd.to_datetime(timestamp)
+        df['date'] = timestamp
+        print(df)
         df = df.dropna(axis=0)
         print(df)
 
@@ -161,7 +168,7 @@ class Basin:
         """
         fig, ax = plt.subplots()
         plt.title(label="streamflow of Basin: " + self.name + " id: " + str(self.id))
-        ax.plot(self.data['Level'])
+        ax.plot(self.data['date'],self.data['Level'])
         ax.set_xlabel("year")
         ax.set_ylabel("Level m")
         plt.show()

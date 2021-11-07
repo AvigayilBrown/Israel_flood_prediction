@@ -47,6 +47,7 @@ def create_basins(selected_basins, stations_info):
 
         b.process_station_info()
         b.process_flow_file()
+        b.preprocess_data()
         b.plot_streamflow()
 
         #
@@ -69,8 +70,6 @@ if __name__ == '__main__':
     metatok = [metatok_1, metatok_2, metatok_3, metatok_4]
 
     selected_basins = process_data(stations_id, metatok)
-    single = {int('14120'):'data_14120.csv'}
+    single = {int('15120'):'data_15120.csv'}
     create_basins(single, station_info)
 
-# fix dates
-# delta take out fucks

@@ -56,16 +56,47 @@ class Basin:
     def process_flow_file(self):
         df = pd.read_csv(self.f_flow, sep='\t')
         timestamp = pd.DataFrame({'year': df.year,
-                           'month': df.month,
-                           'day': df.day,
-                           'hour': df.time})
+                                  'month': df.month,
+                                  'day': df.day,
+                                  'hour': df.time})
         timestamp = pd.to_datetime(timestamp)
         df['date'] = timestamp
-        print(df)
+        # todo take out year/month/day/time
+        # df = df.drop(['year','month','day','time'], 1)
         df = df.dropna(axis=0)
-        print(df)
-
         self.data = df
+
+    def preprocess_data(self):
+        """
+        taking out unreliable data points based on sudden change in water
+        levels.
+        """
+        level = self.data['Level']
+
+        # take out data point with many consecutive values
+        df = level.diff().ne(0).cumsum()
+        self.data['flag'] = df.groupby([level, df]).transform('size').ge(50).astype(int)
+        self.data.loc[self.data.flag == 1, 'Level'] = np.nan
+        self.data = self.data.drop(['flag'], 1)
+
+        # change values of zero to be Nan
+        self.data['Level'] = level.replace(0.0, np.NaN)
+
+        # identify median of dry months for base threshold
+        dry_season = self.data[(level != np.nan) & (self.data['month'].between(6, 9))]
+        threshold = dry_season['Level'].median()
+
+        # remove data points that are much below threshold
+        # todo based on גודל יחסי , and should i make threshold or Nan? 17135
+        # todo if exceeds Q1-Q3?
+        # todo 19185 threshold -0.2
+        self.data.loc[self.data.Level - threshold <= -0.2, 'Level'] = np.nan
+
+
+        # todo 14120 2013-01-31 9:00 jump of over one, but gradual desend - in winter!
+
+        # todo 17135 no major jumps - flatline problem
+        # todo 2016-04-03 14:00 2016-11-01 10:00
 
     def split_data(self):
         """
@@ -168,7 +199,7 @@ class Basin:
         """
         fig, ax = plt.subplots()
         plt.title(label="streamflow of Basin: " + self.name + " id: " + str(self.id))
-        ax.plot(self.data['date'],self.data['Level'])
+        ax.plot(self.data['date'], self.data['Level'])
         ax.set_xlabel("year")
         ax.set_ylabel("Level m")
         plt.show()

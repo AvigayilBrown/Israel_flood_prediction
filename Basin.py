@@ -41,8 +41,11 @@ class Basin:
         self.elevation = None  # m
 
         self.data = None
-        self.X = None  # features
-        self.y = None  # labels
+        self.features = None
+        self.labels = None
+        self.x_test = None
+        self.y_test = None
+
         self.f = {}  # features
         self.timestamp = None
 
@@ -74,68 +77,82 @@ class Basin:
         level = self.data['Level']
 
         # take out data point with many consecutive values
-        df = level.diff().ne(0).cumsum()
-        self.data['flag'] = df.groupby([level, df]).transform('size').ge(50).astype(int)
-        self.data.loc[self.data.flag == 1, 'Level'] = np.nan
-        self.data = self.data.drop(['flag'], 1)
 
-        # change values of zero to be Nan
-        self.data['Level'] = level.replace(0.0, np.NaN)
+        # df = level.diff().ne(0).cumsum()
+        # self.data['flag'] = df.groupby([level, df]).transform('size').ge(50).astype(int)
+        # self.data.loc[self.data.flag == 1, 'Level'] = np.nan
+        # self.data = self.data.drop(['flag'], 1)
 
         # identify median of dry months for base threshold
-        dry_season = self.data[(level != np.nan) & (self.data['month'].between(6, 9))]
+        dry_season = self.data[(level != 0.0) & (self.data['month'].between(6, 9))]
         threshold = dry_season['Level'].median()
 
+        # change values of zero to be Nan
+        self.data['Level'] = level.replace(0.0, threshold)
+
         # remove data points that are much below threshold
-        # todo based on גודל יחסי , and should i make threshold or Nan? 17135
-        # todo if exceeds Q1-Q3?
-        # todo 19185 threshold -0.2
-        self.data.loc[self.data.Level - threshold <= -0.2, 'Level'] = np.nan
-
-
-        # todo 14120 2013-01-31 9:00 jump of over one, but gradual desend - in winter!
-
-        # todo 17135 no major jumps - flatline problem
-        # todo 2016-04-03 14:00 2016-11-01 10:00
+        self.data.loc[self.data.Level - threshold <= -0.2, 'Level'] = threshold
 
     def split_data(self):
         """
         split data into training, validation and test sets
         """
-        # todo add validation split, and add to features
-        # todo talk about size of split (ratio)
-        X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=1)
-        # X_train, X_val, y_train, y_val= train_test_split(X_train, y_train, test_size=0.25, random_state=1)  # 0.25 x 0.8 = 0.2
 
-        split = round(self.data.shape[0] // 78 * (0.8))
-        X_train, X_test = np.split(self.X, [split], axis=0)
-        y_train, y_test = np.split(self.y, [split], axis=0)
-        timestamp_train, self.timestamp = np.split(self.timestamp, [split], axis=0)
-        self.f = {"X_train": X_train, "y_train": y_train,
-                  "X_test": X_test, "y_test": y_test}
+        X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=1)
+        #
+        # split = round(self.data.shape[0] // 78 * (0.8))
+        # X_train, X_test = np.split(self.X, [split], axis=0)
+        # y_train, y_test = np.split(self.y, [split], axis=0)
+        # timestamp_train, self.timestamp = np.split(self.timestamp, [split], axis=0)
+        # self.f = {"X_train": X_train, "y_train": y_train,
+        #           "X_test": X_test, "y_test": y_test}
 
     def create_features(self):
         """
         feature - 72 hours of streamflow data
         label - streamflow in 6 hours
         """
-        d = 72
-        lag = 5  # 6 hours ahead
-        m = self.data.shape[0] // 78
-        X = np.zeros((m, d))
-        flow = self.data['Level']
+        # remove problematic data points that were set to Nan
+        # df = self.data.dropna()
+        df = self.data
+        # take only wet season: 1st of october till may 31st
+        first_year = df['year'].min()
+        last_year = df['year'].max()
+        labels = []
+        features = []
+        for i in range(first_year, last_year):
+            # wet season per year
+            cur_label = df[(df['year'] == i) & (df['month'] >= 10) | (df['year'] == i + 1) & (df['month'] <= 5)]
+            first_index = cur_label.index[0]
+            last_index = cur_label.index[-1]
+            # features - 72 hours of level, 6 hours back
+            cur_feature = df.iloc[first_index - 78:last_index - 5]  # 6 hours behind
+            # todo different number of samples per year
+            labels.append(cur_label)
+            features.append(cur_feature)
 
-        for i in range(m):
-            X[i] = flow.iloc[i:i + d]
-        y = flow[d + lag:d + m + lag].reset_index(drop=True)
-        self.timestamp = self.data['date'][d + lag:d + m + lag].reset_index(drop=True)
-        self.X = X
-        self.y = y
+        # d = 72
+        # lag = 5  # 6 hours ahead
+        # m = df.shape[0] // 78
+        # X = np.zeros((m, d))
+        # level = df['Level']
+        #
+        # for i in range(m):
+        #     X[i] = level.iloc[i:i + d]
+        # y = level[d + lag:d + m + lag].reset_index(drop=True)
+        # self.timestamp = self.data['date'][d + lag:d + m + lag].reset_index(drop=True)
+
+        # test set are values of last hydrological year
+        self.y_test = features.pop()
+        self.x_test = labels.pop()
+        self.features = features
+        self.labels = labels
 
     def model(self):
         """
         regression model for stream prediction.
         """
+
         # regularization: minus min divide by difference max min
         X_train = self.f['X_train']
         X_min, X_max = X_train.min(), X_train.max()
@@ -183,10 +200,10 @@ class Basin:
         """
         fig, ax = plt.subplots()
         plt.title(label="Predicted and actual streamflow per day")
-        # ax.plot(self.f['y_test'], label="actual")
+        ax.plot(self.timestamp, self.f['y_test'], label="actual")
         ax.set_xlabel("year")
         ax.set_ylabel("streamflow mm/day")
-        # ax.plot(self.timestamp,y_pred, label="predicted")
+        ax.plot(self.timestamp, y_pred, label="predicted")
         ax.legend()
         plt.show()
 

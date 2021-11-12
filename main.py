@@ -48,10 +48,10 @@ def create_basins(selected_basins, stations_info):
         b.process_station_info()
         b.process_flow_file()
         b.preprocess_data()
-        b.plot_streamflow()
+        # b.plot_streamflow()
 
-        #
-        # b.create_features()
+
+        b.create_features()
         # b.split_data()
         # y_pred = b.model()
         # b.asses_models(y_pred)
@@ -73,3 +73,15 @@ if __name__ == '__main__':
     single = {int('15120'):'data_15120.csv'}
     create_basins(single, station_info)
 
+"""
+summer starts on the first of september
+lABEL - 1 october till 31 of may 
+MONTH 10 till month 5 including both
+
+
+last year leave out for test
+and train is for cross validation - each time leave out a whole year
+linear regression, ridge or lasso.
+NSE for each basin for each year, get the התפלגות of the nse per year
+LSTM 
+"""

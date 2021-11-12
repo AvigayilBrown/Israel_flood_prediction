@@ -1,0 +1,14 @@
+Basin 15120:
+
+years:
+2010-2021 (till month 8)
+hyrolic years - 2010-2020
+
+defects:
+1) 0.0 - false value, dip in graph
+2) dip in graph, from summer threshold
+
+fix:
+make threshold without 0.0 values
+1) 0.0 becomes summer threshold
+2) far from summer threshold becomes summer threshold

@@ -52,6 +52,7 @@ def create_basins(selected_basins, stations_info):
 
 
         b.create_features()
+        b.cross_val()
         # b.split_data()
         # y_pred = b.model()
         # b.asses_models(y_pred)

@@ -3,6 +3,7 @@ from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
 from datetime import datetime
 from datetime import datetime
 from pandas import DataFrame
@@ -45,7 +46,7 @@ class Basin:
         self.labels = None
         self.x_test = None
         self.y_test = None
-
+        self.kflods = None
         self.f = {}  # features
         self.timestamp = None
 
@@ -120,33 +121,51 @@ class Basin:
         last_year = df['year'].max()
         labels = []
         features = []
+        kfolds = []  # grouping by index
+        testing = []
+        y_test = []
         for i in range(first_year, last_year):
-            # wet season per year
+            cur_features = []
+            # LABELS - wet season per year
             cur_label = df[(df['year'] == i) & (df['month'] >= 10) | (df['year'] == i + 1) & (df['month'] <= 5)]
             first_index = cur_label.index[0]
             last_index = cur_label.index[-1]
-            # features - 72 hours of level, 6 hours back
-            cur_feature = df.iloc[first_index - 78:last_index - 5]  # 6 hours behind
-            # todo different number of samples per year
             labels.append(cur_label)
-            features.append(cur_feature)
 
-        # d = 72
-        # lag = 5  # 6 hours ahead
-        # m = df.shape[0] // 78
-        # X = np.zeros((m, d))
-        # level = df['Level']
-        #
-        # for i in range(m):
-        #     X[i] = level.iloc[i:i + d]
-        # y = level[d + lag:d + m + lag].reset_index(drop=True)
-        # self.timestamp = self.data['date'][d + lag:d + m + lag].reset_index(drop=True)
+            # FEATURES
+            m = cur_label.shape[0]  # number of samples
+            d = 72  # number of features
+            feature_index = first_index - 78
+            for j in range(m):
+                cur_features.append(df['Level'].iloc[feature_index + j:feature_index + j + d].reset_index(drop=True))
+            features.append(pd.concat(cur_features, axis=1).transpose())
 
         # test set are values of last hydrological year
-        self.y_test = features.pop()
-        self.x_test = labels.pop()
+        self.x_test = features.pop()
+        self.y_test = labels.pop()
         self.features = features
         self.labels = labels
+
+    def cross_val(self):
+        # linear regression
+        weights = []
+        f = self.features
+        l = self.labels
+        print(len(f))
+        for i in range(len(self.features)):
+            model = LinearRegression()  # one model for each year left out
+            LOO_f = f[:i] + f[i + 1:]  # leave out one
+            LOO_l = l[:i] + l[i + 1:]
+            X = pd.concat(LOO_f)
+            y = pd.concat(LOO_l)
+            y = y['Level']
+
+            model.fit(X, y)
+            y_pred = model.predict(self.features[i])
+            print(self.NSE(y_pred, self.labels[i]['Level']))
+
+
+            print("\n")
 
     def model(self):
         """

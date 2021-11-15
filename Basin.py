@@ -135,7 +135,7 @@ class Basin:
             # FEATURES
             m = cur_label.shape[0]  # number of samples
             d = 72  # number of features
-            feature_index = first_index - 78
+            feature_index = first_index - (78)
             for j in range(m):
                 cur_features.append(df['Level'].iloc[feature_index + j:feature_index + j + d].reset_index(drop=True))
             features.append(pd.concat(cur_features, axis=1).transpose())
@@ -152,7 +152,7 @@ class Basin:
         weights = pd.DataFrame(np.zeros((10, 72)))
         f = self.features
         l = self.labels
-        print("shape:"+ str(weights.shape))
+        intercept = []
         for i in range(years):
             model = LinearRegression()  # one model for each year left out
             LOO_f = f[:i] + f[i + 1:]  # leave out one
@@ -161,14 +161,18 @@ class Basin:
             y = pd.concat(LOO_l)
             y = y['Level']
 
-            model.fit(X, y) # todo uses MSE?
-            print((model.coef_.T).shape)
-            weights.iloc[i] =model.coef_.T
-            # y_pred = model.predict(self.features[i])
-            # print(self.NSE(y_pred, self.labels[i]['Level']))
+            model.fit(X, y)  # todo uses MSE?
+            weights.iloc[i] = model.coef_.T
+            intercept.append(model.intercept_)
+            y_pred = model.predict(self.features[i])
+            print(self.NSE(y_pred, self.labels[i]['Level']))
+        # bias = np.mean(intercept)
+        # weighted_w = weights.mean(axis=0)
+        # y_pred = np.matmul(self.x_test,weighted_w) + bias
+        y_test = self.y_test['Level']
+        # self.plot_prediction(y_pred)
+        # print(self.NSE(y_pred, y_test))
 
-        weighted_w = weights.mean(axis=0)
-        
 
     def model(self):
         """
@@ -221,11 +225,16 @@ class Basin:
         plots the streamflow prediction vs reality per day.
         """
         fig, ax = plt.subplots()
-        plt.title(label="Predicted and actual streamflow per day")
-        ax.plot(self.timestamp, self.f['y_test'], label="actual")
+        plt.title(label="streamflow of Basin: " + self.name + " id: " + str(self.id))
+        ax.plot(self.y_test['date'].iloc[56*24:60*24], self.y_test['Level'].iloc[56*24:60*24],'-x', label="actual")
         ax.set_xlabel("year")
         ax.set_ylabel("streamflow mm/day")
-        ax.plot(self.timestamp, y_pred, label="predicted")
+        ax.plot(self.y_test['date'].iloc[56*24:60*24], y_pred.iloc[56*24:60*24],'-x', label="predicted")
+        # ax.plot(self.y_test['date'], self.y_test['Level'], '-x',
+        #         label="actual")
+        # ax.set_xlabel("year")
+        # ax.set_ylabel("streamflow mm/day")
+        # ax.plot(self.y_test['date'], y_pred, '-x', label="predicted")
         ax.legend()
         plt.show()
 

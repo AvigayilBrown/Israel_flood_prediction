@@ -148,11 +148,12 @@ class Basin:
 
     def cross_val(self):
         # linear regression
-        weights = []
+        years = len(self.features)
+        weights = pd.DataFrame(np.zeros((10, 72)))
         f = self.features
         l = self.labels
-        print(len(f))
-        for i in range(len(self.features)):
+        print("shape:"+ str(weights.shape))
+        for i in range(years):
             model = LinearRegression()  # one model for each year left out
             LOO_f = f[:i] + f[i + 1:]  # leave out one
             LOO_l = l[:i] + l[i + 1:]
@@ -160,12 +161,14 @@ class Basin:
             y = pd.concat(LOO_l)
             y = y['Level']
 
-            model.fit(X, y)
-            y_pred = model.predict(self.features[i])
-            print(self.NSE(y_pred, self.labels[i]['Level']))
+            model.fit(X, y) # todo uses MSE?
+            print((model.coef_.T).shape)
+            weights.iloc[i] =model.coef_.T
+            # y_pred = model.predict(self.features[i])
+            # print(self.NSE(y_pred, self.labels[i]['Level']))
 
-
-            print("\n")
+        weighted_w = weights.mean(axis=0)
+        
 
     def model(self):
         """

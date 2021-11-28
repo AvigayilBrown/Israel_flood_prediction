@@ -25,6 +25,7 @@ class Basin:
 
     # counts the number of basins
     counter = 0
+    total_nse = []
 
     def __init__(self, id, file_flow, stations_info=None):
         Basin.counter += 1
@@ -46,8 +47,7 @@ class Basin:
         self.labels = None
         self.x_test = None
         self.y_test = None
-        self.kflods = None
-        self.f = {}  # features
+        self.y_pred = None
         self.timestamp = None
 
     def process_station_info(self):
@@ -65,18 +65,44 @@ class Basin:
                                   'hour': df.time})
         timestamp = pd.to_datetime(timestamp)
         df['date'] = timestamp
-        # todo take out year/month/day/time
-        # df = df.drop(['year','month','day','time'], 1)
-        df = df.dropna(axis=0)
         self.data = df
 
-    def preprocess_data(self):
+    def preprocess_data_17168(self):
+        level = self.data['Level']
+
+        # change value of sudden unrealistic drop
+        index_min = self.data.Level.idxmin()
+        self.data.iloc[index_min,6] = 11.9
+
+        # missing data for year 2015 months 7 and 8
+        index_min = self.data.Level.idxmin()
+        self.data.iloc[index_min,6] = 11.9
+
+
+        df = self.data
+        diff = 12.13-11.9
+        df.loc[((df['year'] ==2018)&(df['month'] >= 10))|((df['year'] ==2019) & (df['month'] <= 5)), 'Level'] -= diff
+
+        index_min = self.data.Level.idxmin()
+        self.data.iloc[index_min,6] = 12.8
+
+        # todo make better - lower first half of 2018 (check if all summer)
+
+        # correct rows with Null value
+        average = (13.32+13.15)/2
+        df.loc[(df['year'] ==2015)&(df['month'] == 1)&((df['day'] ==8) & (df['time'] == 11)),'Level'] = average
+        df.loc[(df['year'] == 2015) & (df['month'] == 1) & ((df['day'] == 15) & (df['time'] == 22)), 'Level'] = 12.48
+        df.loc[(df['year'] == 2015) & (df['month'] == 5) & ((df['day'] == 3) & (df['time'] == 3)), 'Level'] = 11.9
+        df.loc[(df['year'] == 2015) & (df['month'] == 5) & ((df['day'] == 18) & (df['time'] == 15)), 'Level'] = 11.9
+
+
+
+    def preprocess_data_15120(self):
         """
         taking out unreliable data points based on sudden change in water
         levels.
         """
         level = self.data['Level']
-
         # take out data point with many consecutive values
 
         # df = level.diff().ne(0).cumsum()
@@ -94,36 +120,27 @@ class Basin:
         # remove data points that are much below threshold
         self.data.loc[self.data.Level - threshold <= -0.2, 'Level'] = threshold
 
-    def split_data(self):
-        """
-        split data into training, validation and test sets
-        """
+        # correct rows with Null value
+        df = self.data
+        df.loc[(df['year'] == 2016) & (df['month'] == 12) & ((df['day'] == 8) & (df['time'] == 19)), 'Level'] = 4.87
+        df.loc[(df['year'] == 2019) & (df['month'] == 7) & ((df['day'] == 10) & (df['time'] == 12)), 'Level'] = 4.99
 
-        X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=1)
-        #
-        # split = round(self.data.shape[0] // 78 * (0.8))
-        # X_train, X_test = np.split(self.X, [split], axis=0)
-        # y_train, y_test = np.split(self.y, [split], axis=0)
-        # timestamp_train, self.timestamp = np.split(self.timestamp, [split], axis=0)
-        # self.f = {"X_train": X_train, "y_train": y_train,
-        #           "X_test": X_test, "y_test": y_test}
 
-    def create_features(self):
+    def create_features(self,lead_time):
         """
         feature - 72 hours of streamflow data
         label - streamflow in 6 hours
         """
         # remove problematic data points that were set to Nan
         # df = self.data.dropna()
+
         df = self.data
         # take only wet season: 1st of october till may 31st
         first_year = df['year'].min()
         last_year = df['year'].max()
         labels = []
         features = []
-        kfolds = []  # grouping by index
-        testing = []
-        y_test = []
+
         for i in range(first_year, last_year):
             cur_features = []
             # LABELS - wet season per year
@@ -135,7 +152,7 @@ class Basin:
             # FEATURES
             m = cur_label.shape[0]  # number of samples
             d = 72  # number of features
-            feature_index = first_index - (78)
+            feature_index = first_index - (d+lead_time)
             for j in range(m):
                 cur_features.append(df['Level'].iloc[feature_index + j:feature_index + j + d].reset_index(drop=True))
             features.append(pd.concat(cur_features, axis=1).transpose())
@@ -147,12 +164,18 @@ class Basin:
         self.labels = labels
 
     def cross_val(self):
+        """
+        The final year of data (2021) is used us test set.
+        The linear regression model uses cross validation, so that each year
+        is used in turn for validation.
+        """
         # linear regression
         years = len(self.features)
         weights = pd.DataFrame(np.zeros((10, 72)))
         f = self.features
         l = self.labels
         intercept = []
+        NSE = []
         for i in range(years):
             model = LinearRegression()  # one model for each year left out
             LOO_f = f[:i] + f[i + 1:]  # leave out one
@@ -165,14 +188,17 @@ class Basin:
             weights.iloc[i] = model.coef_.T
             intercept.append(model.intercept_)
             y_pred = model.predict(self.features[i])
-            print(self.NSE(y_pred, self.labels[i]['Level']))
-        # bias = np.mean(intercept)
-        # weighted_w = weights.mean(axis=0)
-        # y_pred = np.matmul(self.x_test,weighted_w) + bias
-        y_test = self.y_test['Level']
-        # self.plot_prediction(y_pred)
-        # print(self.NSE(y_pred, y_test))
+            # print(self.NSE(y_pred, self.labels[i]['Level']))
+            NSE.append(self.NSE(y_pred, self.labels[i]['Level']))
 
+        bias = np.mean(intercept)
+        weighted_w = weights.mean(axis=0)
+        # todo not supposed to use average for weights - then what to use?
+        y_pred = np.matmul(self.x_test, weighted_w) + bias
+        self.y_pred = y_pred
+        Basin.total_nse.append(NSE)
+        # y_test = self.y_test['Level']
+        # print(self.NSE(y_pred, y_test))
 
     def model(self):
         """
@@ -220,26 +246,18 @@ class Basin:
         #     writer.writerow([str(self.NSE(y_pred, self.y_test))])
         print(self.NSE(y_pred, self.f['y_test']))
 
-    def plot_prediction(self, y_pred):
+    def plot_prediction(self):
         """
-        plots the streamflow prediction vs reality per day.
+        plots the streamflow prediction vs observed per day.
         """
         fig, ax = plt.subplots()
         plt.title(label="streamflow of Basin: " + self.name + " id: " + str(self.id))
-        ax.plot(self.y_test['date'].iloc[56*24:60*24], self.y_test['Level'].iloc[56*24:60*24],'-x', label="actual")
+        ax.plot(self.y_test['date'], self.y_test['Level'], label="actual")
         ax.set_xlabel("year")
         ax.set_ylabel("streamflow mm/day")
-        ax.plot(self.y_test['date'].iloc[56*24:60*24], y_pred.iloc[56*24:60*24],'-x', label="predicted")
-        # ax.plot(self.y_test['date'], self.y_test['Level'], '-x',
-        #         label="actual")
-        # ax.set_xlabel("year")
-        # ax.set_ylabel("streamflow mm/day")
-        # ax.plot(self.y_test['date'], y_pred, '-x', label="predicted")
+        ax.plot(self.y_test['date'], self.y_pred, label="predicted")
         ax.legend()
         plt.show()
-
-    def clean_data(self):
-        pass
 
     def plot_streamflow(self):
         """
@@ -255,6 +273,8 @@ class Basin:
 
 if __name__ == '__main__':
     pass
+    # todo normalize min and max
+
     # file_flow = "C:\\Users\\asus\\Desktop\\Israel_flood_prediction\\data_14120.csv"
     # stations_id = "data//stations.xlsx"
     # station_info = "data//קטלוג_תחנות_הידרומטריות.xlsx"

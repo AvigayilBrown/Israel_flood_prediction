@@ -1,6 +1,7 @@
 import csv
 import pandas as pd
 from Basin import Basin
+import matplotlib.pyplot as plt
 
 TIME = {100: '01', 200: '02', 300: '03', 400: '04', 500: '05', 600: '06', 700: '07'
     , 800: '08', 900: '09', 1000: '10', 1100: '11', 1200: '12', 1300: '13', 1400: '14'
@@ -47,16 +48,32 @@ def create_basins(selected_basins, stations_info):
 
         b.process_station_info()
         b.process_flow_file()
-        b.preprocess_data()
+        if id == 15120:
+            b.preprocess_data_15120()
+        elif id == 17168:
+            b.preprocess_data_17168()
+
+        x = range(3,7)
+        for i in x:
+            b.create_features(i)
+            b.cross_val()
+
         # b.plot_streamflow()
+        # b.plot_prediction()
 
-
-        b.create_features()
-        b.cross_val()
-        # b.split_data()
         # y_pred = b.model()
         # b.asses_models(y_pred)
-        # b.plot_prediction(y_pred)
+        return x,Basin.total_nse,b
+
+def plot_NSE(x,y,basin):
+    for xe, ye in zip(x, y):
+        plt.scatter([xe] * len(ye), ye)
+
+    plt.xticks([3, 4,5,6])
+    plt.title(label="NSE per lead time " +str(basin.name)+ " id: " + str(basin.id))
+    plt.xlabel("lead time(hr)")
+    plt.ylabel("NSE")
+    plt.show()
 
 if __name__ == '__main__':
     # general station files
@@ -71,13 +88,15 @@ if __name__ == '__main__':
     metatok = [metatok_1, metatok_2, metatok_3, metatok_4]
 
     selected_basins = process_data(stations_id, metatok)
-    single = {int('15120'):'data_15120.csv'}
-    create_basins(single, station_info)
+    single = {int('17168'): 'data_17168.csv'}
+    # todo problem with intercept, leave out a year that problematic (+3.1)
+    single = {int('15120'): 'data_15120.csv'}
+
+    x,y,basin = create_basins(single, station_info)
+    plot_NSE(x,y,basin)
 
 """
-summer starts on the first of september
-lABEL - 1 october till 31 of may 
-MONTH 10 till month 5 including both
+
 
 
 last year leave out for test
